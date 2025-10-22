@@ -5,98 +5,9 @@ import {
   ChevronDown, ChevronUp, ExternalLink, Send, X,
   BarChart3, User, Mail, Phone, Download, Plus,
   CheckCircle, Clock as ClockIcon, AlertCircle, Crown,
-  MessageSquare, Zap, CreditCard, Sparkles
+  MessageSquare, Zap, CreditCard, Sparkles,
+  RefreshCw
 } from 'lucide-react';
-
-// Données simulées pour les offres d'emploi
-const mockJobOffers = [
-  {
-    id: 1,
-    title: "Développeur Fullstack React/Node.js",
-    company: "TechCorp",
-    location: "Paris, France",
-    salary: "45k-60k €",
-    type: "CDI",
-    experience: "3-5 ans",
-    description: "Nous recherchons un développeur fullstack expérimenté pour rejoindre notre équipe technique. Vous travaillerez sur des projets innovants avec les dernières technologies.",
-    skills: ["React", "Node.js", "TypeScript", "MongoDB"],
-    postedDate: "2023-10-15",
-    deadline: "2023-11-15",
-    logo: "TC",
-    status: "available",
-    source: "LinkedIn",
-    subscriptionRequired: "premium" // gratuit, basic, premium
-  },
-  {
-    id: 2,
-    title: "Data Scientist",
-    company: "DataInsights",
-    location: "Lyon, France",
-    salary: "50k-65k €",
-    type: "CDI",
-    experience: "2-4 ans",
-    description: "Rejoignez notre équipe data pour développer des modèles prédictifs et des solutions d'IA pour nos clients.",
-    skills: ["Python", "Machine Learning", "SQL", "TensorFlow"],
-    postedDate: "2023-10-14",
-    deadline: "2023-11-10",
-    logo: "DI",
-    status: "applied",
-    applicationDate: "2023-10-16",
-    source: "Indeed",
-    subscriptionRequired: "basic" // gratuit, basic, premium
-  },
-  {
-    id: 3,
-    title: "DevOps Engineer",
-    company: "CloudSolutions",
-    location: "Toulouse, France",
-    salary: "55k-70k €",
-    type: "CDI",
-    experience: "4-6 ans",
-    description: "Nous cherchons un ingénieur DevOps pour optimiser notre infrastructure cloud et nos pipelines de déploiement.",
-    skills: ["AWS", "Docker", "Kubernetes", "CI/CD"],
-    postedDate: "2023-10-13",
-    deadline: "2023-11-05",
-    logo: "CS",
-    status: "saved",
-    source: "Monster",
-    subscriptionRequired: "premium" // gratuit, basic, premium
-  },
-  {
-    id: 4,
-    title: "UX/UI Designer",
-    company: "DesignStudio",
-    location: "Bordeaux, France",
-    salary: "40k-55k €",
-    type: "CDI",
-    experience: "3-5 ans",
-    description: "Rejoignez notre équipe créative pour concevoir des interfaces utilisateur exceptionnelles pour nos produits digitaux.",
-    skills: ["Figma", "Sketch", "Prototyping", "User Research"],
-    postedDate: "2023-10-12",
-    deadline: "2023-11-20",
-    logo: "DS",
-    status: "available",
-    source: "Welcome to the Jungle",
-    subscriptionRequired: "basic" // gratuit, basic, premium
-  },
-  {
-    id: 5,
-    title: "Product Manager",
-    company: "InnovateTech",
-    location: "Nantes, France",
-    salary: "60k-75k €",
-    type: "CDI",
-    experience: "5-7 ans",
-    description: "Nous recherchons un Product Manager pour diriger notre roadmap produit et travailler avec nos équipes techniques et design.",
-    skills: ["Product Strategy", "Agile", "Analytics", "Roadmapping"],
-    postedDate: "2023-10-11",
-    deadline: "2023-11-18",
-    logo: "IT",
-    status: "available",
-    source: "LinkedIn",
-    subscriptionRequired: "gratuit" // gratuit, basic, premium
-  }
-];
 
 // Plans d'abonnement
 const subscriptionPlans = [
@@ -186,6 +97,67 @@ const mockEvents = [
   }
 ];
 
+// Service pour récupérer les offres d'emploi
+const jobService = {
+  async fetchJobOffers() {
+    try {
+      const response = await fetch("https://server38.ifb.fr/webhook/scrap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender: "You",
+          content: "test",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Transformer les données de l'API pour correspondre au format attendu
+      return this.transformApiData(data);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des offres:', error);
+      throw error;
+    }
+  },
+
+  transformApiData(apiData) {
+    // Si l'API retourne directement un tableau d'offres
+    if (Array.isArray(apiData)) {
+      return apiData.map((offer, index) => ({
+        id: offer.id || index + 1,
+        title: offer.title || offer.poste || "Titre non spécifié",
+        company: offer.company || offer.entreprise || "Entreprise non spécifiée",
+        location: offer.location || offer.lieu || "Lieu non spécifié",
+        salary: offer.salary || offer.salaire || "Salaire non spécifié",
+        type: offer.type || offer.contrat || "CDI",
+        experience: offer.experience || "Non spécifiée",
+        description: offer.description || offer.desc || "Description non disponible",
+        skills: offer.skills || offer.competences || [],
+        postedDate: offer.postedDate || offer.date_publication || new Date().toISOString().split('T')[0],
+        deadline: offer.deadline || offer.date_limite || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        logo: offer.logo || (offer.company ? offer.company.substring(0, 2).toUpperCase() : "CO"),
+        status: offer.status || "available",
+        source: offer.source || "API",
+        subscriptionRequired: offer.subscriptionRequired || "gratuit"
+      }));
+    }
+
+    // Si l'API retourne un objet avec une propriété contenant les offres
+    if (apiData.offers || apiData.jobs || apiData.data) {
+      const offersArray = apiData.offers || apiData.jobs || apiData.data;
+      return this.transformApiData(offersArray);
+    }
+
+    // Retourner un tableau vide si le format n'est pas reconnu
+    console.warn('Format de données non reconnu:', apiData);
+    return [];
+  }
+};
+
 // Composant principal de l'application
 const SmartAODashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -204,12 +176,36 @@ const SmartAODashboard = () => {
     { id: 3, message: "Votre candidature a été vue par DataInsights", time: "1j", read: true },
     { id: 4, message: "Deadline approchante: DevOps Engineer chez CloudSolutions", time: "10j", read: false }
   ]);
+  const [jobOffers, setJobOffers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const unreadNotifications = notifications.filter(n => !n.read).length;
 
+  // Charger les offres d'emploi lorsque l'onglet "jobs" est activé
+  useEffect(() => {
+    if (activeTab === 'jobs' && jobOffers.length === 0) {
+      loadJobOffers();
+    }
+  }, [activeTab]);
+
+  const loadJobOffers = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const offers = await jobService.fetchJobOffers();
+      setJobOffers(offers);
+    } catch (err) {
+      setError('Erreur lors du chargement des offres. Veuillez réessayer.');
+      console.error('Erreur:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filtrer les offres selon l'abonnement
   const getOffersForSubscription = () => {
-    return mockJobOffers.filter(offer => {
+    return jobOffers.filter(offer => {
       if (user.subscription === "premium") return true;
       if (user.subscription === "basic") return offer.subscriptionRequired !== "premium";
       return offer.subscriptionRequired === "gratuit";
@@ -367,9 +363,17 @@ const SmartAODashboard = () => {
         <main className="flex-1 overflow-y-auto">
           <div className="p-6">
             {activeTab === 'dashboard' && <DashboardTab stats={mockStats} events={mockEvents} offers={filteredOffers} user={user} />}
-            {activeTab === 'jobs' && <JobsTab offers={filteredOffers} user={user} />}
-            {activeTab === 'applications' && <ApplicationsTab offers={mockJobOffers.filter(o => o.status === 'applied')} />}
-            {activeTab === 'saved' && <SavedTab offers={mockJobOffers.filter(o => o.status === 'saved')} user={user} />}
+            {activeTab === 'jobs' && (
+              <JobsTab 
+                offers={filteredOffers} 
+                user={user} 
+                loading={loading} 
+                error={error}
+                onRefresh={loadJobOffers}
+              />
+            )}
+            {activeTab === 'applications' && <ApplicationsTab offers={jobOffers.filter(o => o.status === 'applied')} />}
+            {activeTab === 'saved' && <SavedTab offers={jobOffers.filter(o => o.status === 'saved')} user={user} />}
             {activeTab === 'calendar' && <CalendarTab events={mockEvents} />}
             {activeTab === 'subscription' && <SubscriptionTab user={user} plans={subscriptionPlans} />}
             {activeTab === 'settings' && <SettingsTab user={user} />}
@@ -735,7 +739,7 @@ const StatCard = ({ title, value, icon: Icon, color }) => {
 };
 
 // Jobs Tab
-const JobsTab = ({ offers, user }) => {
+const JobsTab = ({ offers, user, loading, error, onRefresh }) => {
   const [selectedJob, setSelectedJob] = useState(null);
   const [view, setView] = useState('grid'); // 'grid' or 'list'
 
@@ -747,6 +751,14 @@ const JobsTab = ({ offers, user }) => {
           <p className="text-gray-600">{offers.length} offres correspondant à vos critères</p>
         </div>
         <div className="flex items-center mt-4 space-x-2 sm:mt-0">
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Chargement...' : 'Actualiser'}
+          </button>
           <div className="flex p-1 bg-gray-100 rounded-md">
             <button 
               onClick={() => setView('grid')}
@@ -772,6 +784,25 @@ const JobsTab = ({ offers, user }) => {
         </div>
       </div>
 
+      {/* Affichage des erreurs */}
+      {error && (
+        <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Erreur</h3>
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+            <button 
+              onClick={onRefresh}
+              className="ml-auto text-sm font-medium text-red-800 hover:text-red-900"
+            >
+              Réessayer
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Bannière d'abonnement si nécessaire */}
       {user.subscription !== 'premium' && (
         <div className="p-4 border border-blue-200 rounded-lg bg-gradient-to-r from-blue-50 to-purple-50">
@@ -792,19 +823,42 @@ const JobsTab = ({ offers, user }) => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {offers.map(offer => (
-          <JobCard key={offer.id} offer={offer} view={view} />
-        ))}
-      </div>
+      {/* État de chargement */}
+      {loading && (
+        <div className="flex justify-center py-12">
+          <div className="text-center">
+            <RefreshCw className="w-12 h-12 mx-auto text-gray-300 animate-spin" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">Chargement des offres...</h3>
+            <p className="mt-1 text-sm text-gray-500">Veuillez patienter pendant que nous récupérons les dernières offres.</p>
+          </div>
+        </div>
+      )}
 
-      {offers.length === 0 && (
+      {/* Affichage des offres */}
+      {!loading && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {offers.map(offer => (
+            <JobCard key={offer.id} offer={offer} view={view} />
+          ))}
+        </div>
+      )}
+
+      {!loading && offers.length === 0 && (
         <div className="py-12 text-center">
           <Briefcase className="w-12 h-12 mx-auto text-gray-300" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">Aucune offre disponible</h3>
           <p className="mt-1 text-sm text-gray-500">
             Essayez d'ajuster vos filtres ou vérifiez votre abonnement pour voir plus d'offres.
           </p>
+          <div className="mt-6">
+            <button 
+              onClick={onRefresh}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Actualiser les offres
+            </button>
+          </div>
         </div>
       )}
     </div>
