@@ -1,5 +1,5 @@
 import React from 'react';
-import Lalaina from './Components/Dashboard/Lalaina';
+import Lalaina from './Components/Lalaina';
 
 
 import './index.css'; // attention au chemin exact !
