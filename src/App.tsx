@@ -1,11 +1,11 @@
-import Lalaina from './Components/Lalaina';
+import Sarobidy from './Components/Sarobidy';
 
 
 import './index.css'; // attention au chemin exact !
 
 
 const App = () => {
-  return <Lalaina/>;
+  return <Sarobidy/>;
 };
 
 export default App;
